@@ -1,0 +1,14 @@
+# config.yaml
+
+eventbrite_token: "YOUR_EVENTBRITE_TOKEN"
+google_api_key: "YOUR_GOOGLE_API_KEY"
+
+database:
+  dbname: crowd_db
+  user: postgres
+  password: secretpass
+  host: localhost
+  port: 5432
+
+# Default search radius in meters (can be overridden per request)
+default_search_radius: 5000
