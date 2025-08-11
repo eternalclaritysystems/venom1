@@ -1,42 +1,49 @@
-import numpy as np
+"""
+tracking_module.py
+Detects trends or anomalies in crowd data.
+"""
 
-def extract_crowd_metrics(df):
+def detect_trends(cleaned_data):
     """
-    Extract numeric crowd levels from popular_times and live_populartimes.
-    Create columns:
-      - avg_popularity (average historical popularity %)
-      - live_popularity (current live popularity %, if available)
+    Adds a 'trend' field to each record.
+    Trend is based on comparing current live data to popular times average.
     """
-    avg_popularity = []
-    live_popularity = []
+    tracked = []
 
-    for _, row in df.iterrows():
-        pt = row.get("popular_times") or []
+    for record in cleaned_data:
+        ptimes = record.get("popular_times")
+        live = record.get("live_data")
+
+        if not ptimes or not live:
+            record["trend"] = "unknown"
+            tracked.append(record)
+            continue
+
+        # Example: compare current crowd % to average for this hour
+        current_crowd = live.get("current")
+        hour = live.get("hour")
+
         try:
-            hours = []
-            for day in pt:
-                hours.extend([h[1] for h in day.get("data", []) if isinstance(h[1], (int, float))])
-            avg_pop = np.mean(hours) if hours else np.nan
+            avg_for_hour = 0
+            count = 0
+            for day_data in ptimes:
+                day_hours = day_data.get("data", [])
+                if len(day_hours) > hour:
+                    avg_for_hour += day_hours[hour]
+                    count += 1
+            avg_for_hour = avg_for_hour / count if count else 0
         except Exception:
-            avg_pop = np.nan
-        avg_popularity.append(avg_pop)
+            avg_for_hour = 0
 
-        live = row.get("live_populartimes")
-        try:
-            live_pop = live.get("current_popularity") if live else np.nan
-        except Exception:
-            live_pop = np.nan
-        live_popularity.append(live_pop)
+        if current_crowd is None or avg_for_hour == 0:
+            record["trend"] = "unknown"
+        elif current_crowd > avg_for_hour * 1.1:
+            record["trend"] = "increasing"
+        elif current_crowd < avg_for_hour * 0.9:
+            record["trend"] = "decreasing"
+        else:
+            record["trend"] = "steady"
 
-    df["avg_popularity"] = avg_popularity
-    df["live_popularity"] = live_popularity
-    return df
+        tracked.append(record)
 
-def detect_spikes(df, threshold=30):
-    """
-    Detect places where live popularity spikes significantly above historical average.
-    Returns a DataFrame of spike places.
-    """
-    df["popularity_diff"] = df["live_popularity"] - df["avg_popularity"]
-    spikes = df[(df["popularity_diff"] >= threshold)]
-    return spikes
+    return tracked
