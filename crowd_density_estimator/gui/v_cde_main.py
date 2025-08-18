@@ -1,74 +1,65 @@
 import tkinter as tk
 from tkinter import ttk
-import time
-import threading
 import os
 import subprocess
+import threading
+import time
 from datetime import datetime
 
-# Folder to check for required files
-DATA_FOLDER = "data_ingestion"
+# Files to check and run
+TARGET_FILES = ["v_cde_eventbright.py", "v_cde_xplatform.py"]
+SEARCH_BASE = "/home/kali/Desktop/venom_crowd_density_estimator/main/data_ingestion"
 
-# List of files required inside DATA_FOLDER
-REQUIRED_FILES = ["config.yaml", "data_ingestion_main.py"]
+def find_file(base_path, target):
+    """Recursively search for a file named `target` under `base_path`."""
+    for root, _, files in os.walk(base_path):
+        if target in files:
+            return os.path.join(root, target)
+    return None
 
-class LogGUI:
+class ModuleGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("System Control Panel")
-        self.root.geometry("700x700")  # square window
+        self.root.title("Module Data Gatherer")
+        self.root.geometry("900x500")
         self.root.resizable(False, False)
 
-        # Notebook (tabs)
-        self.notebook = ttk.Notebook(root)
-        self.notebook.pack(fill="both", expand=True)
-        self.notebook.bind("<<NotebookTabChanged>>", self.tab_changed)
+        # Frames
+        self.log_frame = tk.Frame(root, width=300, bg="white")
+        self.log_frame.pack(side="left", fill="y")
 
-        # Logs tab
-        self.log_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.log_frame, text="Logs")
+        self.module_frame = tk.Frame(root, padx=20, pady=20)
+        self.module_frame.pack(side="right", fill="both", expand=True)
 
-        self.log_text = tk.Text(self.log_frame, wrap="word", state="disabled")
-        self.log_text.pack(side="left", fill="both", expand=True)
-
+        # Log text
+        self.log_text = tk.Text(self.log_frame, wrap="word", state="disabled", width=40)
+        self.log_text.pack(fill="y", expand=True, padx=5, pady=5)
         self.scrollbar = tk.Scrollbar(self.log_frame, command=self.log_text.yview)
         self.scrollbar.pack(side="right", fill="y")
         self.log_text.config(yscrollcommand=self.scrollbar.set)
 
-        # Data Gather tab
-        self.data_frame = ttk.Frame(self.notebook)
-        self.notebook.add(self.data_frame, text="Data Gather")
+        # Create module boxes with buttons
+        self.module_widgets = []
+        for target in TARGET_FILES:
+            file_path = find_file(SEARCH_BASE, target)
+            color = "green" if file_path else "red"
+            display_text = target if file_path else f"{target} not found"
 
-        # Labels
-        tk.Label(self.data_frame, text="Available files:").grid(row=0, column=0, sticky="w", padx=10, pady=5)
-        tk.Label(self.data_frame, text="Required files:").grid(row=0, column=1, sticky="w", padx=10, pady=5)
+            # Container frame
+            frame = tk.Frame(self.module_frame)
+            frame.pack(pady=15, fill="x")
 
-        # Listbox for available files
-        self.file_listbox = tk.Listbox(self.data_frame, width=30)
-        self.file_listbox.grid(row=1, column=0, padx=10, pady=5, sticky="nsew")
+            label = tk.Label(frame, text=display_text, bg=color, fg="white",
+                             font=("Helvetica", 10, "bold"), width=20, height=2, relief="solid", bd=2)
+            label.pack(side="left", padx=(0,10))
 
-        # Frame for required files
-        self.required_frame = tk.Frame(self.data_frame)
-        self.required_frame.grid(row=1, column=1, padx=10, pady=5, sticky="nsew")
+            button = tk.Button(frame, text="Gather Data", command=lambda f=file_path, t=target: self.run_module(f, t))
+            button.pack(side="left")
 
-        # Run data ingestion button
-        self.run_button = tk.Button(self.data_frame, text="Run Data Ingestion", command=self.run_data_ingestion)
-        self.run_button.grid(row=2, column=0, columnspan=2, pady=10)
+            self.module_widgets.append((label, button))
 
-        # Refresh files button
-        self.refresh_button = tk.Button(self.data_frame, text="Refresh", command=self.refresh_files)
-        self.refresh_button.grid(row=3, column=0, columnspan=2, pady=5)
-
-        # Configure grid to expand
-        self.data_frame.columnconfigure(0, weight=1)
-        self.data_frame.columnconfigure(1, weight=1)
-        self.data_frame.rowconfigure(1, weight=1)
-
-        # Start background log update
-        threading.Thread(target=self.update_logs, daemon=True).start()
-
-        # Initial refresh
-        self.refresh_files()
+        # Start log timer
+        threading.Thread(target=self.update_logs_timer, daemon=True).start()
 
     def log_message(self, message):
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -78,53 +69,25 @@ class LogGUI:
         self.log_text.config(state="disabled")
         self.log_text.see("end")
 
-    def update_logs(self):
+    def update_logs_timer(self):
+        counter = 0
         while True:
+            counter += 10
             time.sleep(10)
-            self.root.after(0, lambda: self.log_message("10 seconds have passed"))
+            self.root.after(0, lambda c=counter: self.log_message(f"{c} seconds have passed"))
 
-    def refresh_files(self):
-        # Available files (from DATA_FOLDER)
-        self.file_listbox.delete(0, tk.END)
-        folder_path = os.path.join(os.getcwd(), DATA_FOLDER)
-        if os.path.isdir(folder_path):
-            files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
-            if not files:
-                self.file_listbox.insert(tk.END, "None")
-            else:
-                for f in files:
-                    self.file_listbox.insert(tk.END, f)
-        else:
-            self.file_listbox.insert(tk.END, "Folder not found")
-
-        # Required files
-        for widget in self.required_frame.winfo_children():
-            widget.destroy()  # clear previous
-
-        for rf in REQUIRED_FILES:
-            rf_path = os.path.join(folder_path, rf)
-            color = "green" if os.path.isfile(rf_path) else "red"
-            lbl = tk.Label(self.required_frame, text=rf, bg=color, fg="white", width=25)
-            lbl.pack(pady=2)
-
-        self.log_message("Data Gather tab refreshed.")
-
-    def tab_changed(self, event):
-        tab_name = self.notebook.tab(self.notebook.select(), "text")
-        self.log_message(f"Switched to tab: {tab_name}")
-
-    def run_data_ingestion(self):
-        ingestion_path = os.path.join(os.getcwd(), DATA_FOLDER, "data_ingestion_main.py")
-        if os.path.isfile(ingestion_path):
-            self.log_message("Starting data_ingestion_main.py ...")
+    def run_module(self, file_path, module_name):
+        if file_path and os.path.isfile(file_path):
+            self.log_message(f"Starting {module_name}...")
             try:
-                subprocess.Popen(["python3", ingestion_path])
+                subprocess.Popen(["python3", file_path])
+                self.log_message(f"{module_name} launched successfully.")
             except Exception as e:
-                self.log_message(f"[ERROR] Failed to run data_ingestion_main.py: {e}")
+                self.log_message(f"[ERROR] Failed to run {module_name}: {e}")
         else:
-            self.log_message("[WARNING] data_ingestion_main.py module not connected.")
+            self.log_message(f"[WARNING] {module_name} not found or cannot be executed.")
 
 if __name__ == "__main__":
     root = tk.Tk()
-    app = LogGUI(root)
+    app = ModuleGUI(root)
     root.mainloop()
