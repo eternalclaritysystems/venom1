@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 
 # Files to check and run
-TARGET_FILES = ["v_cde_eventbright.py", "v_cde_xplatform.py"]
+TARGET_FILES = ["v_cde_eventbrite.py", "v_cde_xplatform.py"]
 SEARCH_BASE = "/home/kali/Desktop/venom_crowd_density_estimator/main/data_ingestion"
 
 def find_file(base_path, target):
