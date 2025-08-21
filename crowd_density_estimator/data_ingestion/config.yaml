@@ -1,6 +1,6 @@
 # config.yaml
 
-ticketmaster_token: ""
+ticketmaster_token: "TICKETMASTER_API_KEY"
 google_api_key: "YOUR_GOOGLE_API_KEY"
 
 database:
