@@ -1,6 +1,6 @@
 # config.yaml
 
-eventbrite_token: "YOUR_EVENTBRITE_TOKEN"
+ticketmaster_token: ""
 google_api_key: "YOUR_GOOGLE_API_KEY"
 
 database:
