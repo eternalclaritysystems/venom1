@@ -7,7 +7,7 @@ import time
 from datetime import datetime
 
 # Files to check and run
-TARGET_FILES = ["v_cde_eventbrite.py", "v_cde_xplatform.py"]
+TARGET_FILES = ["v_cde_ticketmaster.py", "v_cde_xplatform.py"]
 SEARCH_BASE = "/home/kali/Desktop/venom_crowd_density_estimator/main/data_ingestion"
 
 def find_file(base_path, target):
@@ -50,7 +50,7 @@ class ModuleGUI:
             frame.pack(pady=15, fill="x")
 
             label = tk.Label(frame, text=display_text, bg=color, fg="white",
-                             font=("Helvetica", 10, "bold"), width=20, height=2, relief="solid", bd=2)
+                             font=("Helvetica", 12, "bold"), width=20, height=2, relief="solid", bd=2)
             label.pack(side="left", padx=(0,10))
 
             button = tk.Button(frame, text="Gather Data", command=lambda f=file_path, t=target: self.run_module(f, t))
@@ -80,7 +80,9 @@ class ModuleGUI:
         if file_path and os.path.isfile(file_path):
             self.log_message(f"Starting {module_name}...")
             try:
-                subprocess.Popen(["python3", file_path])
+                # Fix: set cwd to script's folder so it finds config.yaml
+                folder = os.path.dirname(file_path)
+                subprocess.Popen(["python3", file_path], cwd=folder)
                 self.log_message(f"{module_name} launched successfully.")
             except Exception as e:
                 self.log_message(f"[ERROR] Failed to run {module_name}: {e}")
