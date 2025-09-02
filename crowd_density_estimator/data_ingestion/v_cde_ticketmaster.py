@@ -1,93 +1,75 @@
+import os
 import requests
 import yaml
-import os
 
-# Load configuration from config.yaml
-CONFIG_PATH = os.path.join(os.path.dirname(__file__), "config.yaml")
+# --- Auto-find config.yaml in main/ ---
+def find_config_file(start_dir):
+    for root, dirs, files in os.walk(start_dir):
+        if "config.yaml" in files:
+            return os.path.join(root, "config.yaml")
+    return None
+
+# Assume project root is one level above data_ingestion/
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CONFIG_PATH = find_config_file(PROJECT_ROOT)
+
+if not CONFIG_PATH:
+    raise FileNotFoundError(f"Config file not found anywhere in {PROJECT_ROOT}")
 
 with open(CONFIG_PATH, "r", encoding="utf-8") as f:
     config = yaml.safe_load(f)
 
-# Read the API key from config
-TICKETMASTER_API_KEY = config["ticketmaster"]["api_key"].strip()
+# --- API key & defaults ---
+TICKETMASTER_API_KEY = config["ticketmaster_token"]
+DEFAULT_RADIUS = config.get("default_search_radius", 5000)  # meters
 
-BASE_URL = "https://app.ticketmaster.com/discovery/v2/events.json"
+# --- Get current location ---
+def get_current_location():
+    try:
+        response = requests.get("https://ipinfo.io/json")
+        if response.status_code == 200:
+            lat, lon = map(float, response.json()["loc"].split(","))
+            return lat, lon
+    except Exception as e:
+        print(f"[WARNING] Could not get location automatically: {e}")
+    # fallback to NYC
+    return 40.7128, -74.0060
 
+# --- Search Ticketmaster events ---
+def search_events(keyword=None, radius=DEFAULT_RADIUS):
+    lat, lon = get_current_location()
+    latlong_str = f"{lat},{lon}"
 
-def search_events(keyword=None, lat=None, lon=None, radius=25, unit="miles", size=10):
-    """
-    Search for events using Ticketmaster Discovery API and normalize the response.
+    # Convert radius from meters to km (Ticketmaster requires 'km' or 'miles')
+    radius_km = max(1, int(radius / 1000))  # minimum 1 km
 
-    Args:
-        keyword (str): Search term (e.g., "concert", "sports").
-        lat (float): Latitude for location-based search.
-        lon (float): Longitude for location-based search.
-        radius (int): Radius from location.
-        unit (str): 'miles' or 'km'.
-        size (int): Number of results to return (max 200).
-
-    Returns:
-        list[dict]: Normalized list of events.
-    """
+    url = "https://app.ticketmaster.com/discovery/v2/events.json"
     params = {
         "apikey": TICKETMASTER_API_KEY,
-        "size": size,
-        "radius": radius,
-        "unit": unit,
+        "latlong": latlong_str,
+        "radius": radius_km,
+        "unit": "km",         # must be 'km' or 'miles'
+        "size": 10
     }
-
     if keyword:
         params["keyword"] = keyword
-    if lat is not None and lon is not None:
-        params["latlong"] = f"{lat},{lon}"
 
-    response = requests.get(BASE_URL, params=params, timeout=10)
+    response = requests.get(url, params=params, timeout=10)
+    if response.status_code == 200:
+        return response.json()
+    else:
+        raise RuntimeError(f"Ticketmaster API error {response.status_code}: {response.text}")
 
-    if response.status_code != 200:
-        raise RuntimeError(
-            f"Ticketmaster API error {response.status_code}: {response.text}"
-        )
-
-    data = response.json()
-    normalized_events = []
-
-    events = data.get("_embedded", {}).get("events", [])
-    for e in events:
-        title = e.get("name", "No title")
-        start = e.get("dates", {}).get("start", {}).get("dateTime") or \
-                e.get("dates", {}).get("start", {}).get("localDate", "No date")
-        
-        venue_info = e.get("_embedded", {}).get("venues", [{}])[0]
-        venue = venue_info.get("name", "Unknown venue")
-        location = []
-        if "location" in venue_info:
-            lat_str = venue_info["location"].get("latitude")
-            lon_str = venue_info["location"].get("longitude")
-            if lat_str and lon_str:
-                try:
-                    location = [float(lat_str), float(lon_str)]
-                except ValueError:
-                    location = []
-        
-        normalized_events.append({
-            "title": title,
-            "start": start,
-            "location": location,
-            "venue": venue,
-            "source": "Ticketmaster",
-            "raw": e
-        })
-
-    return normalized_events
-
-
+# --- Main execution for testing ---
 if __name__ == "__main__":
     try:
-        events = search_events(keyword="concert", lat=34.0522, lon=-118.2437, radius=30, size=5)
+        data = search_events(keyword="concert")
+        events = data.get("_embedded", {}).get("events", [])
+        if not events:
+            print("No events found near your location.")
         for e in events:
-            print(f"{e['title']} | {e['start']} @ {e['venue']} ({e['location']})")
+            venue = e["_embedded"]["venues"][0]["name"]
+            date = e["dates"]["start"]["localDate"]
+            print(f"{e['name']} | {date} @ {venue}")
     except Exception as ex:
-        print(f"Error: {ex}")
-
-# --- Alternative (if you wanted the key directly in Python, not config.yaml) ---
-# TICKETMASTER_API_KEY = ""  # << put your API key here if not using config.yaml
+        print(f"[ERROR] {ex}")
