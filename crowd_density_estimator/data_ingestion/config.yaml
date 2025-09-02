@@ -1,14 +1,13 @@
-# config.yaml
-
-ticketmaster_token: "TICKETMASTER_API_KEY"
-google_api_key: "YOUR_GOOGLE_API_KEY"
+ticketmaster_token: ""
+google_api_key: ""
+other_api_1_token: ""
+other_api_2_token: ""
 
 database:
   dbname: crowd_db
-  user: postgres
-  password: secretpass
-  host: localhost
+  user: ""
+  password: ""
+  host: ""
   port: 5432
 
-# Default search radius in meters (can be overridden per request)
 default_search_radius: 5000
