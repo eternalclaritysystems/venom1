@@ -1,14 +1,34 @@
+import os
+import yaml
 import tkinter as tk
 from tkinter import ttk
-import os
 import subprocess
 import threading
-import time
 from datetime import datetime
+import time
 
-# Files to check and run
+# --- Auto-find config.yaml ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))  # main/gui/
+PARENT_DIR = os.path.join(BASE_DIR, "..")  # main/
+
+# look for config.yaml in main/
+CONFIG_PATH = os.path.join(PARENT_DIR, "config.yaml")
+
+if not os.path.isfile(CONFIG_PATH):
+    # fallback: search recursively in main/
+    for root, dirs, files in os.walk(PARENT_DIR):
+        if "config.yaml" in files:
+            CONFIG_PATH = os.path.join(root, "config.yaml")
+            break
+    else:
+        raise FileNotFoundError("Config file not found anywhere in main/ directory")
+
+with open(CONFIG_PATH, "r", encoding="utf-8") as f:
+    config = yaml.safe_load(f)
+
+# --- Files to check and run ---
 TARGET_FILES = ["v_cde_ticketmaster.py", "v_cde_xplatform.py"]
-SEARCH_BASE = "/home/kali/Desktop/venom_crowd_density_estimator/main/data_ingestion"
+SEARCH_BASE = os.path.join(PARENT_DIR, "data_ingestion")
 
 def find_file(base_path, target):
     """Recursively search for a file named `target` under `base_path`."""
@@ -17,9 +37,11 @@ def find_file(base_path, target):
             return os.path.join(root, target)
     return None
 
+# --- GUI ---
 class ModuleGUI:
-    def __init__(self, root):
+    def __init__(self, root, config):
         self.root = root
+        self.config = config
         self.root.title("Module Data Gatherer")
         self.root.geometry("900x500")
         self.root.resizable(False, False)
@@ -80,7 +102,6 @@ class ModuleGUI:
         if file_path and os.path.isfile(file_path):
             self.log_message(f"Starting {module_name}...")
             try:
-                # Fix: set cwd to script's folder so it finds config.yaml
                 folder = os.path.dirname(file_path)
                 subprocess.Popen(["python3", file_path], cwd=folder)
                 self.log_message(f"{module_name} launched successfully.")
@@ -89,7 +110,8 @@ class ModuleGUI:
         else:
             self.log_message(f"[WARNING] {module_name} not found or cannot be executed.")
 
+# --- Main ---
 if __name__ == "__main__":
     root = tk.Tk()
-    app = ModuleGUI(root)
+    app = ModuleGUI(root, config=config)
     root.mainloop()
