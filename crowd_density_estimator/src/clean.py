@@ -25,8 +25,8 @@ def clean_data(events: list) -> pd.DataFrame:
                 "name": name,
                 "date": dates,
                 "venue": venue.get("name"),
-                "lat": float(lat),   #  standardized
-                "lon": float(lon),   #  standardized
+                "lat": float(lat),   # ✅ standardized
+                "lon": float(lon),   # ✅ standardized
             })
         except Exception:
             continue
