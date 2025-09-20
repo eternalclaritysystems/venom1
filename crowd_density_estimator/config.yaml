@@ -1,0 +1,20 @@
+# config.yaml - main configuration
+
+ticketmaster:
+  api_key: ""
+  radius_miles: 30       # radius to search events
+  days_ahead: 30         # look for events within the next 30 days
+
+map:
+  center_lat: 40.7128    # NYC default center
+  center_lon: -74.0060
+  zoom: 12
+  heatmap_radius: 25
+
+outputs:
+  processed_csv: "data/processed/density.csv"
+  map_html: "outputs/map.html"
+
+processing:
+  lat_bin_size: 0.01     # degrees
+  lon_bin_size: 0.01
