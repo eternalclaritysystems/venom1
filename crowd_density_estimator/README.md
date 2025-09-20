@@ -1,3 +1,4 @@
+for desktop use on Linux:
 - Python 3.11+
 - Git (optional, for cloning the repository)
 - A Ticketmaster API key
