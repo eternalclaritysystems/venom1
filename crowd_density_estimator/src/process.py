@@ -14,7 +14,7 @@ def calculate_density(df, config):
     grouped = (
         df.groupby(["lat_bin", "lon_bin"])
         .size()
-        .reset_index(name="count")   #  ensures column is called "count"
+        .reset_index(name="count")   # 👈 ensures column is called "count"
     )
 
     grouped.rename(columns={"lat_bin": "lat", "lon_bin": "lon"}, inplace=True)
