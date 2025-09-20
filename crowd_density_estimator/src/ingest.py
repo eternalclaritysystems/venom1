@@ -26,7 +26,7 @@ def from_ticketmaster(api_key: str, radius: int = 30, days: int = 30) -> list:
 
         events = data.get("_embedded", {}).get("events", [])
         print(f"[ingest] Loaded {len(events)} events from Ticketmaster API")
-        return events  #  return list of dicts
+        return events  # ✅ return list of dicts
 
     except Exception as e:
         print(f"[ingest] Error fetching data: {e}")
